@@ -1,0 +1,43 @@
+{"fixed":"鈴木様へ\n\nこんにちは。今日はどのような一日を過ごされましたか？先日は楽しい時間を共有できて嬉しかったです。","fixes":[{"title":"敬称が不適切","fixed":"鈴木さん、今日は何をされましたか？この前の楽しい思い出を振り返りましょう"}],"score":{"politeness":1,"readability":2}}
+
+import { CommentsProvider } from "@udecode/plate-comments";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { MentionCombobox } from "@/components/plate-ui/mention-combobox";
+import { CommentsPopover } from "@/components/plate-ui/comments-popover";
+import { Editor } from "@/components/plate-ui/editor";
+import { plugins } from "@/lib/plate/plate-plugins";
+import { Plate } from "@udecode/plate-common";
+import { serializeMd } from "@udecode/plate-serializer-md";
+import { Descendant } from "slate";
+import { Text, PlateEditor } from "@udecode/plate-common";
+
+  const [editorValue, setEditorValue] = React.useState<Descendant[]>([
+    { type: "paragraph", children: [{ text: "" }] },
+  ]);
+  
+{/*<DndProvider backend={HTML5Backend}>
+            <CommentsProvider users={{}} myUserId="1">
+              <Plate
+                plugins={plugins}
+                initialValue={[
+                  {
+                    type: "paragraph",
+                    children: text ? [{ text }] : [{ text: "" }],
+                  },
+                ]}
+                onChange={(newValue: Descendant[] | undefined) => {
+                  if (newValue) {
+                    const markdownText = serializeMd({
+                      children: newValue!.filter((node) => Text.isText(node)), // isTextFragmentをisTextに変更
+                    } as any);
+                    setText(markdownText);
+                  }
+                }}
+              >
+                <Editor placeholder="Take a note..." />
+                <MentionCombobox items={[]} />
+                <CommentsPopover />
+              </Plate>
+            </CommentsProvider>
+              </DndProvider>*/}

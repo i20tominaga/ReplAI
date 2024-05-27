@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { TooltipProvider } from "@/components/plate-ui/tooltip";
+
+
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,7 +19,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+      <TooltipProvider
+                disableHoverableContent
+                delayDuration={500}
+                skipDelayDuration={0}
+              >
+        {children}              </TooltipProvider>
+</body>
     </html>
   );
 }
