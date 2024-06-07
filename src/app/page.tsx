@@ -1,12 +1,12 @@
-"use client";
-
+'use client';
 import * as React from "react";
 import axios from "axios";
-import { useState, useEffect } from "react"; // useStateとuseEffectを追加
+import { useState, useEffect, useCallback} from "react";
 import { Button } from "@/components/ui/button";
 import { BookCopy } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Check } from "lucide-react";
+import { Diff } from 'react-diff-view';
 
 interface ParagraphElement {
   type: "paragraph";
@@ -35,8 +35,8 @@ const LoadingSpinner = () => <div className="loader">修正中...</div>;
 export default function Home() {
   const [backendData, setBackendData] = useState<any>(null);
   const [text, setText] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(false); // ローディング状態を管理
-  const [copied, setCopied] = React.useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (backendData) {
@@ -50,29 +50,30 @@ export default function Home() {
     }
   }, [backendData]);
 
-  const getData = async () => {
-    try {
-      setLoading(true); // データ取得開始時にローディングを開始
-      const response = await axios.get(
-        `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
-      );
-      setBackendData(response.data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false); // データ取得終了時にローディングを停止
-    }
-  };
+  const getData = useCallback(async () => {
+  try {
+    setLoading(true);
+    const response = await axios.get(
+      `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
+    );
+    setBackendData(response.data);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoading(false);
+  }
+}, [text]); // textのみを依存関係に指定
+
+useEffect(() => {
+  getData();
+}, [getData]); // getDataを依存関係に追加
+
 
   const copyFixedData = () => {
-    if (backendData) {
-      const dataToCopy =
-        typeof backendData === "object"
-          ? JSON.stringify(backendData)
-          : backendData;
-      navigator.clipboard.writeText(dataToCopy);
+    if (backendData && backendData.fixes) {
+      const fixes = backendData.fixes.map((fix: any) => fix.fixed).join("\n");
+      navigator.clipboard.writeText(fixes);
       setCopied(true);
-      // 2秒後に元に戻す
       setTimeout(() => {
         setCopied(false);
       }, 1000);
@@ -85,6 +86,22 @@ export default function Home() {
     ) as HTMLTextAreaElement | null;
     textArea?.setAttribute("value", value);
   };
+
+  const renderFixes = () => {
+    if (backendData && backendData.fixes) {
+      return backendData.fixes.map((fix: any, index: number) => (
+        <div key={index}>
+          {/* <Diff
+            oldValue={text || ''} // 修正前のプロパティ
+            newValue={fix.fixed}   // 修正後のプロパティ
+          /> */}
+          <div>{fix.fixed}</div>
+        </div>
+      ));
+    }
+    return null;
+  };
+
 
   return (
     <>
@@ -101,6 +118,8 @@ export default function Home() {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+
+          {/*{renderFixes()}*/}
 
           <div
             className="flex items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500"
@@ -132,10 +151,6 @@ export default function Home() {
                 :{backendData ? backendData.score.readability : "-"}
               </span>
             </button>
-            <Button onClick={getData} disabled={loading}>
-              {loading ? <LoadingSpinner /> : "修正"}{" "}
-              {/* ローディング中はスピナーを表示 */}
-            </Button>
             <Button onClick={copyFixedData}>
               {copied ? <Check /> : <BookCopy />}
             </Button>
