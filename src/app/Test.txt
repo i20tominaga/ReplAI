@@ -1,4 +1,7 @@
-{"fixed":"鈴木様へ\n\nこんにちは。今日はどのような一日を過ごされましたか？先日は楽しい時間を共有できて嬉しかったです。","fixes":[{"title":"敬称が不適切","fixed":"鈴木さん、今日は何をされましたか？この前の楽しい思い出を振り返りましょう"}],"score":{"politeness":1,"readability":2}}
+{"fixed":"鈴木様へ\n\nこんにちは。今日はどのような一日を過ごされましたか？先日は楽しい時間を共有できて嬉しかったです。",
+ "fixes":[{"title":"敬称が不適切","fixed":"鈴木さん、今日は何をされましたか？この前の楽しい思い出を振り返りましょう"}],
+ "score":{"politeness":1,"readability":2}
+}
 
 import { CommentsProvider } from "@udecode/plate-comments";
 import { DndProvider } from "react-dnd";
@@ -15,7 +18,7 @@ import { Text, PlateEditor } from "@udecode/plate-common";
   const [editorValue, setEditorValue] = React.useState<Descendant[]>([
     { type: "paragraph", children: [{ text: "" }] },
   ]);
-  
+
 {/*<DndProvider backend={HTML5Backend}>
             <CommentsProvider users={{}} myUserId="1">
               <Plate
@@ -41,3 +44,8 @@ import { Text, PlateEditor } from "@udecode/plate-common";
               </Plate>
             </CommentsProvider>
               </DndProvider>*/}
+
+修正点
+添削通知
+リクエストが返ってこなかったら再度リクエストを送る(リクエストを送る前に確認する)
+リクエストが返ってくるまでスピナーを回す

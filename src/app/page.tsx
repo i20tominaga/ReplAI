@@ -1,12 +1,12 @@
-'use client';
+"use client";
 import * as React from "react";
 import axios from "axios";
-import { useState, useEffect, useCallback} from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { BookCopy } from "lucide-react";
+import { BookCopy, SendHorizontal } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Check } from "lucide-react";
-import { Diff } from 'react-diff-view';
+import { toast, ToastContainer, ToastContentProps } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface ParagraphElement {
   type: "paragraph";
@@ -32,85 +32,86 @@ type Props = {
 
 const LoadingSpinner = () => <div className="loader">修正中...</div>;
 
+const RetryToast = ({ closeToast, retry }: { closeToast: () => void, retry: () => void }) => (
+  <div>
+    <p>リクエストが失敗しました。</p>
+    <Button onClick={() => { retry(); closeToast(); }} className="bg-blue-500 hover:bg-blue-600">
+      再試行する
+    </Button>
+  </div>
+);
+
 export default function Home() {
   const [backendData, setBackendData] = useState<any>(null);
   const [text, setText] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
-  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (backendData) {
-      const dataToShow =
-        typeof backendData === "object"
-          ? JSON.stringify(backendData)
-          : backendData;
-      setTextAreaValue(dataToShow);
-    } else {
-      setTextAreaValue("データがありません");
+  const getData = useCallback(async (retryCount = 0) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
+      );
+      setBackendData(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      if (retryCount < 3) { // Retry up to 3 times
+        setTimeout(() => {
+          toast.info("レスポンスがありません。再試行中...", {
+            position: "top-right",
+            autoClose: 2000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          });
+          getData(retryCount + 1);
+        }, 2000); // Wait 2 seconds before retrying
+      } else {
+        toast(
+          <RetryToast retry={() => getData(0)} closeToast={() => toast.dismiss()} />,
+          {
+            position: "top-right",
+            autoClose: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          }
+        );
+        setLoading(false);
+      }
     }
-  }, [backendData]);
-
-  const getData = useCallback(async () => {
-  try {
-    setLoading(true);
-    const response = await axios.get(
-      `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
-    );
-    setBackendData(response.data);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    setLoading(false);
-  }
-}, [text]); // textのみを依存関係に指定
-
-useEffect(() => {
-  getData();
-}, [getData]); // getDataを依存関係に追加
-
+  }, [text]);
 
   const copyFixedData = () => {
     if (backendData && backendData.fixes) {
       const fixes = backendData.fixes.map((fix: any) => fix.fixed).join("\n");
       navigator.clipboard.writeText(fixes);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 1000);
+      toast.success("コピーが成功しました！", {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
     }
   };
-
-  const setTextAreaValue = (value: any) => {
-    const textArea = document.getElementById(
-      "outputTextArea"
-    ) as HTMLTextAreaElement | null;
-    textArea?.setAttribute("value", value);
-  };
-
-  const renderFixes = () => {
-    if (backendData && backendData.fixes) {
-      return backendData.fixes.map((fix: any, index: number) => (
-        <div key={index}>
-          {/* <Diff
-            oldValue={text || ''} // 修正前のプロパティ
-            newValue={fix.fixed}   // 修正後のプロパティ
-          /> */}
-          <div>{fix.fixed}</div>
-        </div>
-      ));
-    }
-    return null;
-  };
-
 
   return (
     <>
+      <ToastContainer />
       <div className="flex items-center justify-between w-full mb-4">
         <p className="text-lg font-bold text-black">
           repr <span className="text-orange-500">AI</span>
         </p>
         <p className="text-lg font-bold text-right">執筆する</p>
       </div>
+      <a href="https://www.tokuyama.ac.jp/" className="text-lg text-gray-500">説明ページはこちら</a>
       <main className="flex min-h-screen flex-col items-center justify-between p-24">
         <div className="flex flex-col items-center justify-center w-full">
           <Textarea
@@ -118,9 +119,6 @@ useEffect(() => {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-
-          {/*{renderFixes()}*/}
-
           <div
             className="flex items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500"
             style={{ marginTop: "1rem" }}
@@ -128,7 +126,6 @@ useEffect(() => {
             <p className="text-sm text-gray-500">
               文字数: {text ? text.replace(/\n/g, "").length : 0}
             </p>
-
             <button
               className="flex items-center text-white rounded-full px-3 py-1 mr-2 bg-transparent"
               style={{ width: "2rem" }}
@@ -152,7 +149,10 @@ useEffect(() => {
               </span>
             </button>
             <Button onClick={copyFixedData}>
-              {copied ? <Check /> : <BookCopy />}
+              <BookCopy />
+            </Button>
+            <Button className="bg-green-500 hover:bg-green-600" onClick={() => getData()} disabled={loading}>
+              {loading ? <LoadingSpinner /> : <SendHorizontal />}
             </Button>
           </div>
           <Textarea
@@ -161,7 +161,7 @@ useEffect(() => {
             value={
               backendData && backendData.fixes.length
                 ? backendData.fixes.map((fix: any) => fix.fixed).join("\n")
-                : "データがありません"
+                : "修正例はここ"
             }
             readOnly
           />
