@@ -1,106 +1,71 @@
-"use client";
+'use client';
+
 import * as React from "react";
 import axios from "axios";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { BookCopy, SendHorizontal } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast, ToastContainer, ToastContentProps } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-interface ParagraphElement {
-  type: "paragraph";
-  children: CustomText[];
+interface BackendData {
+  score: {
+    politeness: number;
+    readability: number;
+  };
+  fixes: {
+    fixed: string;
+  }[];
 }
-
-interface CustomText {
-  text: string;
-}
-
-type CustomElement = ParagraphElement;
-declare module "slate" {
-  interface CustomTypes {
-    Element: CustomElement;
-    Text: CustomText;
-  }
-}
-
-type Props = {
-  text?: string;
-  setText: (text: string) => void;
-};
 
 const LoadingSpinner = () => <div className="loader">修正中...</div>;
 
-const RetryToast = ({ closeToast, retry }: { closeToast: () => void, retry: () => void }) => (
-  <div>
-    <p>リクエストが失敗しました。</p>
-    <Button onClick={() => { retry(); closeToast(); }} className="bg-blue-500 hover:bg-blue-600">
-      再試行する
-    </Button>
-  </div>
-);
-
 export default function Home() {
-  const [backendData, setBackendData] = useState<any>(null);
-  const [text, setText] = useState<string | undefined>(undefined);
+  const [backendData, setBackendData] = useState<BackendData | null>(null);
+  const [text, setText] = useState<string>(""); // 初期値を空文字列に設定
+  const [outputText, setOutputText] = useState<string>("修正例はここ");
   const [loading, setLoading] = useState<boolean>(false);
 
-  const getData = useCallback(async (retryCount = 0) => {
+  const getData = useCallback(async () => {
+    const requestStartTime = Date.now(); // リクエスト開始時間を記録
     try {
       setLoading(true);
       const response = await axios.get(
         `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
       );
+      const responseTime = Date.now() - requestStartTime; // レスポンスタイムを計算
+      console.log(`Total response time: ${responseTime} ms`);
+
       setBackendData(response.data);
-      setLoading(false);
+      console.log(response.data);
     } catch (error) {
       console.error(error);
-      if (retryCount < 3) { // Retry up to 3 times
-        setTimeout(() => {
-          toast.info("レスポンスがありません。再試行中...", {
-            position: "top-right",
-            autoClose: 2000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          });
-          getData(retryCount + 1);
-        }, 2000); // Wait 2 seconds before retrying
-      } else {
-        toast(
-          <RetryToast retry={() => getData(0)} closeToast={() => toast.dismiss()} />,
-          {
-            position: "top-right",
-            autoClose: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          }
-        );
-        setLoading(false);
-      }
+      toast.error("リクエストが失敗しました", {
+        autoClose: false,
+        closeButton: false,
+        onClick: () => getData(),
+      });
+    } finally {
+      setLoading(false);
     }
   }, [text]);
 
   const copyFixedData = () => {
     if (backendData && backendData.fixes) {
-      const fixes = backendData.fixes.map((fix: any) => fix.fixed).join("\n");
+      const fixes = backendData.fixes.map((fix) => fix.fixed).join("\n");
       navigator.clipboard.writeText(fixes);
-      toast.success("コピーが成功しました！", {
-        position: "top-right",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
+      toast.success("コピーが成功しました！");
     }
   };
+
+  useEffect(() => {
+    if (backendData && backendData.fixes.length) {
+      setOutputText(backendData.fixes.map((fix) => fix.fixed).join("\n"));
+    } else {
+      setOutputText("修正例はここ");
+    }
+  }, [backendData]);
 
   return (
     <>
@@ -155,16 +120,7 @@ export default function Home() {
               {loading ? <LoadingSpinner /> : <SendHorizontal />}
             </Button>
           </div>
-          <Textarea
-            id="outputTextArea"
-            placeholder="修正例はここ"
-            value={
-              backendData && backendData.fixes.length
-                ? backendData.fixes.map((fix: any) => fix.fixed).join("\n")
-                : "修正例はここ"
-            }
-            readOnly
-          />
+          <>{outputText}</>
         </div>
       </main>
     </>
