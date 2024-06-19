@@ -1,0 +1,514 @@
+//Define L298N Dual H-Bridge Motor Controller Pins
+#define speedPinR         9   //  RIGHT PWM pin connect MODEL-X ENA
+#define RightDirectPin1  12   //  Right Motor direction pin 1 to MODEL-X IN1
+#define RightDirectPin2  11   //  Right Motor direction pin 2 to MODEL-X IN2
+
+#define speedPinL         6   //  Left PWM pin connect MODEL-X ENB
+#define LeftDirectPin1    7   //  Left Motor direction pin 1 to MODEL-X IN3
+#define LeftDirectPin2    8   //  Left Motor direction pin 1 to MODEL-X IN4
+
+/*From left to right, connect to A0-A4*/
+#define LFSensor_0 A0
+#define LFSensor_1 A1
+#define LFSensor_2 A2
+#define LFSensor_3 A3
+#define LFSensor_4 A4
+
+#define SPEED  160    // motor in speed
+#define FSTEP      // Forward Step Distance
+#define CSTEP     // Circle Step Angle
+#define LENGTH  11.0  // Car Length
+#define RADIUS   9.0  // Circle Radius
+#define DELAY 15    // Delay Time
+#define Weight_0 3  // phase 0
+#define Weight_1 4  // phase 1
+#define Weight_2 3  // phase 2
+const double pi = 3.14159;
+boolean zero[7][7][7];                                  //確率と状態遷移を表す配列(初期分布)
+boolean zero0[7][7][7];                                 //確率と状態遷移を表す配列(コピー用)
+byte sensor;
+byte state[7][7][7];                                    //状態と状態遷移を表す配列
+byte transition[7][7][7][3][3];                         //3状態3制御3速度を格納する配列
+int i0, j0, k0;                                         //現在の状態を表す変数
+//double velocity;                                       //速度を表す変数
+double radius[] = {-45,-15,-2.7,0,2.7,15,45};          //どのくらい曲がるかを定義した配列(cm)
+double offset[] = {-5,-3,-1.5,0,1.5,3,5};              //真ん中のセンサーとそれぞれのセンサーの差(cm)
+double angle[] = {-45,-30,-15,0,15,30,45};           //真ん中のセンサーとそれぞれのセンサーの角度の差(deg)
+double sensor_x0[] = {-4.7,-2.0,0,2.0,4.7};                //中央のセンサーを原点とした時のそれぞれのセンサーの距離(cm)
+double sensor_y0[] = {-0.7,0,0,0,-0.7};                    //中央のセンサーを原点とした時のそれぞれのセンサーの距離(cm)
+unsigned int probability0[7][7][7];                        //初期分布
+unsigned int probability[7][7][7];                        //コピー用
+String action[] = {"Left", "Right", "Advance"};           //行動を定義する配列
+int c_index;                                              //車両の制御において、どのアクションを実行するかを決定するためのインデックス
+unsigned long tm;                                         //時間の計算で使う変数
+long number;                                              //確率の計算で使う変数
+
+void setup()                                          //初期化を行う関数
+{
+ // initialize digital pin LED_BUILTIN as an output.
+ pinMode(LED_BUILTIN, OUTPUT);
+
+ pinMode(speedPinL,OUTPUT);         //left motor PWM pin
+ pinMode(speedPinR,OUTPUT);         //rignt motor PWM  pin
+ pinMode(RightDirectPin1,OUTPUT);   //left motor direction pin1
+ pinMode(RightDirectPin2,OUTPUT);   //left motor direction pin2
+ pinMode(LeftDirectPin1,OUTPUT);    //right motor direction Pin 1
+ pinMode(LeftDirectPin2,OUTPUT);    //right motor direction Pin 2
+ pinMode(2,OUTPUT);                 //right motor direction Pin 2
+
+ /*line follow sensors */
+ pinMode(LFSensor_0,INPUT);
+ pinMode(LFSensor_1,INPUT);
+ pinMode(LFSensor_2,INPUT);
+ pinMode(LFSensor_3,INPUT);
+ pinMode(LFSensor_4,INPUT);
+ Serial.begin(9600);
+ states();
+ preparation();
+ probability0[3][3][3]=8192;
+ zero0[3][3][3] = false;
+}
+
+void states()                                   //状態を定義する関数
+{
+ double dis=0;
+ for(int p=0; p<5; p++){
+   double x1 = sensor_x0[p]; //回転前のy
+   double y1 = sensor_y0[p]; //回転前のy
+   for (int i=0; i < sizeof(angle)/sizeof(angle[0]); i++){
+     double A = (angle[i]/180.)*pi;  //角度(弧度法に変換)
+     double x2 = kaitenx(x1, y1, A); //回転後のx
+     double y2 = kaiteny(x1, y1, A); //回転後のy
+     for(int j=0; j < sizeof(offset)/sizeof(offset[0]); j++){
+       double D = offset[j]; //ずれ
+       double x3 = x2 + D;          //xにずれを足す
+       for(int k = 0; k < sizeof(radius)/sizeof(radius[0]); k++){
+         double R = radius[k]; //曲率
+         if(k == 3){
+           if(x3 <= 2.5 && x3 >= -2.5){
+             bitWrite(state[k][j][i], 4-p, 1);
+           }
+           else{
+             bitWrite(state[k][j][i], 4-p, 0);
+           }
+         }
+         else{
+           dis = (sqrt(pow(R-x3,2)+pow(y2,2)));
+           if(dis <= 2.5 + abs(R) && dis >= -2.5 + abs(R)){
+             bitWrite(state[k][j][i], 4-p, 1);
+           }
+           else{
+             bitWrite(state[k][j][i], 4-p, 0);
+           }
+         }
+       }
+     }
+   }
+ }
+}
+
+void preparation()                            //状態推定の準備を行う関数
+{
+  for(int i = 0; i < 7; i++){
+   for(int j = 0; j < 7; j++){
+    for(int k = 0; k < 7; k++){
+      zero[i][j][k] = true;
+      zero0[i][j][k] = true;
+      for(int ctrl = 0; ctrl < 3; ctrl++){
+        for(int phase = 0; phase < 3; phase++){
+          prediction(i, j, k, ctrl, phase);
+      //  show_transition(ctrl, i, j, k, phase);
+        }
+      }
+    }
+   }
+  }
+}
+
+void show_transition(int ctrl, int i, int j, int k, int phase)                  //状態遷移を表示する関数
+{
+        Serial.print(action[ctrl]);
+        Serial.print(", 曲率 = ");
+        Serial.print(radius[i]);
+        Serial.print(", offset = ");
+        Serial.print(offset[j]);
+        Serial.print(", angle = ");
+        Serial.print(angle[k]);
+        Serial.print(", offset = ");
+        Serial.print(offset[transition[i][j][k][ctrl][phase]/16]);
+        Serial.print(", angle = ");
+        Serial.println(angle[transition[i][j][k][ctrl][phase]%16]);
+
+}
+
+void prediction(int i, int j, int k, int ctrl, int phase)
+{
+ double R = radius[i];
+ double D0 = offset[j];
+ double A0 = (angle[k]/180)*pi;
+ double dx = phase*FSTEP*15/1000;  //微小距離vΔt
+ double Cx, Cy, x1, y1, y2, D1, D2, A1, A2, phi, T;
+ int newj, newk;
+ switch (ctrl){
+   case 0: //左スピン
+     Cx = kaitenx(0, -LENGTH, A0); + D0;
+     Cy = kaiteny(0, -LENGTH, A0);
+     T = phase*CSTEP*15/1000;
+     if(i == 3){ //曲率0
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       A1 = A0 + T;
+       newj = index_offset(D1);
+       newk = index_angle(A1);
+     }
+     else if(i<3){ //左カーブ
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       phi = atan2(y1, D1-R);
+       A1 = A0 + T - phi;
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     else {  //右カーブ
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       phi = atan2(-y1, -(D1-R));
+       A1 = A0 + T - phi;
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     break;
+   case 1: //右スピン
+     Cx = kaitenx(0, -LENGTH, A0); + D0;
+     Cy = kaiteny(0, -LENGTH, A0);
+     T = -phase*CSTEP*15/1000;
+     if(i == 3){ //曲率0
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       A1 = A0 + T;
+       newj = index_offset(D1);
+       newk = index_angle(A1);
+     }
+     else if(i<3){ //左カーブ
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       phi = atan2(y1, D1-R);
+       A1 = A0 + T - phi;
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     else {  //右カーブ
+       D1 = kaitenx(D0-Cx, -Cy, T) + Cx;
+       y1 = kaiteny(D0-Cx, -Cy, T) + Cy;
+       phi = atan2(-y1, -(D1-R));
+       A1 = A0 + T - phi;
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     break;
+   case 2:
+     if(i == 3){ //曲率0
+       D1 = kaitenx(0, dx, A0) + D0;
+       y1 = kaiteny(0, dx, A0);
+       A1 = A0;
+       newj = index_offset(D1);
+       newk = index_angle(A1);
+     }
+     else if(i<3){ //左カーブ
+       D1 = kaitenx(0, dx, A0) + D0;
+       y1 = kaiteny(0, dx, A0);
+       phi = atan2(y1, D1-R);
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       y2 = kaiteny(D1-R, y1, phi);
+       A1 = A0 - phi;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     else {  //右カーブ
+       D1 = kaitenx(0, dx, A0) + D0;
+       y1 = kaiteny(0, dx, A0);
+       phi = atan2(-y1, -(D1-R));
+       D2 = kaitenx(D1-R, y1, phi) + R;
+       y2 = kaiteny(D1-R, y1, phi);
+       A1 = A0 - phi;
+       newj = index_offset(D2);
+       newk = index_angle(A1);
+     }
+     break;
+   default:
+     break;
+ }
+ transition[i][j][k][ctrl][phase] = newj*16 + newk;
+}
+
+double spinx(double x, double y, double angle)                                           //x軸のに関する回転を行う関数
+{
+  double ans;
+  ans = x * cos(angle) - y * sin(angle);
+  return ans;
+}
+
+double spiny(double x, double y, double angle)                                          //y軸のに関する回転を行う関数
+{
+  double ans;
+  ans = x * sin(angle) + y * cos(angle);
+  return ans;
+}
+
+int index_offset(double d)                                                              //オフセットを計算する関数
+{
+  int index;
+  double mn = 1000;
+  for(int j = 0; j < 7; j++)
+  {
+    if(mn > abs(offset[j] - d))
+    {
+      mn = abs(offset[j] - d);
+      index = j;
+    }
+  }
+  return index;
+}
+
+int index_angle(double a)                                                           //角度を計算する関数
+{
+  int index;
+  double mn = 1000;
+  a = 180. * a / pi;
+  if(a > 180.) a -= 360;
+  if(a < -180.) a += 360;
+  for(int j = 0; j < 7; j++)
+  {
+    if(mn > abs(angle[j] - a))
+    {
+      mn = abs(angle[j] - a);
+      index = j;
+    }
+  }
+  return index;
+}
+
+void loop(){
+  int tmp;
+  control();
+  tm = millis();
+  curvature();
+  digitalWrite(2, HIGH);
+  p0_to_p();
+  tmp = millis() - tm;
+  if(DELAY - tmp > 0) delay(DELAY - tmp);
+  digitalWrite(2, LOW);
+  read_sensor_values();
+  p_to_p0();
+  check();
+}
+
+void monitor(){                                                                                   //状態を監視してシリアルモニタに出力する関数
+  Serial.print("Curvature = ");
+  Serial.print(radius[i0]);
+  Serial.print(", Offset = ");
+  Serial.print(offset[j0]);
+  Serial.print(", Angle = ");
+  Serial.print(angle[k0]);
+  Serial.print(",");
+  Serial.print(action[c_index]);
+  Serial.print(",");
+  Serial.println(probability0[i0][j0][k0]);
+}
+
+void control()                                                                                      //制御アルゴリズムを実行する関数
+{
+  if(j0 > 3 && k0 < 3){
+    c_index = 0;
+    go_Left();
+    set_Motorspeed(SPEED, SPEED);
+  } else if(j0 < 3 && k0 > 3){
+    c_index = 1;
+    go_Right();
+    set_Motorspeed(SPEED, SPEED);
+  } else {
+    c_index = 2;
+    go_Advance();
+    set_Motorspeed(SPEED, SPEED);
+  }
+}
+
+void p0_to_p()                                                                                  //状態推定の更新を行う関数
+{
+  byte m, n;
+  byte tmp;
+  for(byte i = 0; i < 7; i++){
+   for(byte j = 0; j < 7; j++){
+    for(byte k = 0; k < 7; k++){
+      if(zero0[i][j][k] == false){
+        for(int phase = 0; phase < 3; phase++){
+          tmp = transition[i][j][k][c_index][phase];
+          m = tmp / 16;
+          n = tmp % 16;
+          zero[i][m][n] = false;
+          switch(phase){
+            case 0: probability[i][m][n] += probability0[i][j][k] * Weight_0; break;
+            case 1: probability[i][m][n] += probability0[i][j][k] * Weight_1; break;
+            default: probability[i][m][n] += probability0[i][j][k] * Weight_2;
+          }
+        }
+        probability0[i][j][k] = 0;
+        zero0[i][j][k] = true;
+      }
+    }
+   }
+  }
+}
+
+void curvature(){                                                             //確率を分布させる関数
+  unsigned int sum;
+  for(int j = 0; j < 7; j++)
+  {
+    for(int k = 0; k < 7; k++)
+    {
+      sum = 0;
+      for(int l = 0; l < 7; l++)
+      {
+        sum += probability0[l][j][k];
+      }
+      for(int i = 0; i < 7; i++)
+      {
+          probability0[i][j][k] = sum / 8;
+          if(sum) zero0[i][j][k] = false;
+      }
+    }
+  }
+}
+
+void read_sensor_values()                                                       //センサーの値を読む関数
+{
+  bitWrite(sensor, 4, digitalRead(LFSensor_0));
+  bitWrite(sensor, 3, digitalRead(LFSensor_1));
+  bitWrite(sensor, 2, digitalRead(LFSensor_2));
+  bitWrite(sensor, 1, digitalRead(LFSensor_3));
+  bitWrite(sensor, 0, digitalRead(LFSensor_4));
+}
+
+void p_to_p0()                                                                  //3次元配列を操作して特定の条件を満たす要素を別の配列に移動し、その移動した要素の値を計算する関数
+{
+  unsigned int temp;
+  number = 0;
+  for(byte i = 0; i < 7; i++){
+    for(byte j = 0; j < 7; j++){
+      for(byte k = 0; k < 7; k++){
+          if(!zero[i][j][k]){
+            temp = probability[i][j][k] * correlation(i, j, k);
+            probability[i][j][k] = 0;
+            zero[i][j][k] = true;
+            probability0[i][j][k] = temp;
+            if(temp > 0){
+                zero0[i][j][k] = false;
+                number += temp;
+            }
+          }
+      }
+    }
+  }
+}
+
+byte correlation(byte i, byte j, byte k)                                          //二つのバイトのXORを計算する関数
+{
+  static byte bitCntAry[] = {
+    0, 1, 1, 2, 1, 2, 2, 3, //  0 - 7
+    1, 2, 2, 3, 2, 3, 3, 4, //  8 - 15
+    1, 2, 2, 3, 2, 3, 3, 4, // 16 - 23
+    2, 3, 3, 4, 3, 4, 4, 5  // 24 - 31
+  };
+  byte temp;
+  temp = ~(state[i][j][k] ^ sensor);
+  return bitCntAry[temp & 0x1F];
+}
+
+void check()                                                                      //特定の条件に基づいて車両の制御に必要なパラメータを設定する関数
+{
+  if(number == 0){
+    stop_Stop();
+    while(1){}
+  }
+  if(number > 8192){
+    byte count = 0;
+    unsigned int mx = 0;
+    while(number > 8192){
+      number /= 2;
+      count++;
+    }
+    for(byte i = 0; i < 7; i++){
+      for(byte j = 0; j < 7; j++){
+        for(byte k = 0; k < 7; k++){
+          if(zero0[i][j][k]) continue;
+          probability0[i][j][k] >>= count;
+          if(probability0[i][j][k] > mx){
+            mx = probability0[i][j][k];
+            i0 = i; j0 = j; k0 = k;
+          }
+        }
+      }
+    }
+  }else{
+    byte count = 0;
+    unsigned int mx = 0;
+    while(number < 8192){
+      number *= 2;
+      count++;
+    }
+    for(byte i = 0; i < 7; i++){
+      for(byte j = 0; j < 7; j++){
+        for(byte k = 0; k < 7; k++){
+          probability0[i][j][k] <<= count;
+            if(probability0[i][j][k] > mx){
+              mx = probability0[i][j][k];
+              i0 = i; j0 = j; k0 = k;
+          }
+        }
+      }
+    }
+  }
+}
+
+void go_Left(void)  //Turn left
+{
+  digitalWrite(RightDirectPin1, HIGH);
+  digitalWrite(RightDirectPin2,LOW);
+  digitalWrite(LeftDirectPin1,LOW);
+  digitalWrite(LeftDirectPin2,HIGH);
+}
+
+void go_Right(void)  //Turn right
+{
+  digitalWrite(RightDirectPin1, LOW);
+  digitalWrite(RightDirectPin2,HIGH);
+  digitalWrite(LeftDirectPin1,HIGH);
+  digitalWrite(LeftDirectPin2,LOW);
+}
+
+void go_Advance(void)  //Forward
+{
+  digitalWrite(RightDirectPin1, HIGH);
+  digitalWrite(RightDirectPin2, LOW);
+  digitalWrite(LeftDirectPin1, HIGH);
+  digitalWrite(LeftDirectPin2, LOW);
+}
+
+void stop_Stop()    //Stop
+{
+  digitalWrite(RightDirectPin1, LOW);
+  digitalWrite(RightDirectPin2,LOW);
+  digitalWrite(LeftDirectPin1,LOW);
+  digitalWrite(LeftDirectPin2,LOW);
+}
+
+/*set motor speed */
+void set_Motorspeed(int speed_L,int speed_R)
+{
+  analogWrite(speedPinL,speed_L);
+  analogWrite(speedPinR,speed_R);
+}

@@ -10,13 +10,15 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface BackendData {
+  fixed: string;
+  fixes: {
+    title: string;
+    fixed: string;
+  }[];
   score: {
     politeness: number;
     readability: number;
   };
-  fixes: {
-    fixed: string;
-  }[];
 }
 
 const LoadingSpinner = () => <div className="loader">修正中...</div>;
@@ -38,41 +40,82 @@ export default function Home() {
       console.log(`Total response time: ${responseTime} ms`);
 
       setBackendData(response.data);
+      if (response.data) {
+        if (response.data.fixed === text) {
+          toast.info("入力された値と修正値が一致しました。修正の必要はありません。", {
+            autoClose: 5000,
+            closeButton: false,
+          });
+        } else {
+          setOutputText(response.data.fixed || "修正例はここ");
+        }
+      } else {
+        setOutputText("修正例はここ");
+      }
       console.log(response.data);
     } catch (error) {
       console.error(error);
-      toast.error("リクエストが失敗しました", {
-        autoClose: false,
-        closeButton: false,
-        onClick: () => getData(),
-      });
+      toast.error(
+        <div>
+          リクエストが失敗しました
+          <Button onClick={getData} className="ml-2">
+            再試行
+          </Button>
+        </div>,
+        {
+          autoClose: false,
+          closeButton: false,
+        }
+      );
     } finally {
       setLoading(false);
     }
   }, [text]);
-
   const copyFixedData = () => {
-    if (backendData && backendData.fixes) {
-      const fixes = backendData.fixes.map((fix) => fix.fixed).join("\n");
-      navigator.clipboard.writeText(fixes);
+    if (backendData) {
+      let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
+
+      // 修正結果に「件名；」と「本文；」が含まれているかチェック
+      const subjectIndex = filteredFixed.indexOf("件名:");
+      const bodyIndex = filteredFixed.indexOf("本文:");
+
+      if (subjectIndex !== -1 && bodyIndex !== -1) {
+        // 「本文；」の後の値を取得してクリップボードにコピー
+        filteredFixed = filteredFixed.slice(bodyIndex + 4);
+      }
+
+      navigator.clipboard.writeText(filteredFixed);
       toast.success("コピーが成功しました！");
     }
   };
 
+
   useEffect(() => {
-    if (backendData && backendData.fixes.length) {
-      setOutputText(backendData.fixes.map((fix) => fix.fixed).join("\n"));
+    if (backendData) {
+      let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
+
+      // 修正結果に「件名；」と「本文；」が含まれているかチェック
+      const subjectIndex = filteredFixed.indexOf("件名:");
+      const bodyIndex = filteredFixed.indexOf("本文:");
+
+      if (subjectIndex !== -1 && bodyIndex !== -1) {
+        // 「本文；」の後の値を取得してセット
+        filteredFixed = filteredFixed.slice(bodyIndex + 4);
+      }
+
+      setOutputText(filteredFixed || "修正例はここ");
     } else {
       setOutputText("修正例はここ");
     }
   }, [backendData]);
 
+
   return (
     <>
       <ToastContainer />
-      <div className="flex items-center justify-between w-full mb-4">
+      <div className="flex items-center justify-between w-full mb-4 px-4 py-2 border-b">
         <p className="text-lg font-bold text-black">
-          repr <span className="text-orange-500">AI</span>
+          repr<span className="text-orange-500">AI</span>
         </p>
         <p className="text-lg font-bold text-right">執筆する</p>
       </div>
@@ -120,7 +163,9 @@ export default function Home() {
               {loading ? <LoadingSpinner /> : <SendHorizontal />}
             </Button>
           </div>
-          <>{outputText}</>
+          <div className="w-full bg-gray-50 p-4 rounded-md shadow-inner">
+            {outputText}
+          </div>
         </div>
       </main>
     </>
