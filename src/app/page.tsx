@@ -41,13 +41,23 @@ export default function Home() {
 
       setBackendData(response.data);
       if (response.data) {
-        if (response.data.fixed === text) {
+        // フィルタリング処理を修正結果取得時に行う
+        let filteredFixed = response.data.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
+        const subjectIndex = filteredFixed.indexOf("件名:");
+        const bodyIndex = filteredFixed.indexOf("本文:");
+
+        if (subjectIndex !== -1 && bodyIndex !== -1) {
+          // 「本文；」の後の値を取得して修正例としてセット
+          filteredFixed = filteredFixed.slice(bodyIndex + 4);
+        }
+
+        if (filteredFixed === text) {
           toast.info("入力された値と修正値が一致しました。修正の必要はありません。", {
             autoClose: 5000,
             closeButton: false,
           });
         } else {
-          setOutputText(response.data.fixed || "修正例はここ");
+          setOutputText(filteredFixed || "修正例はここ");
         }
       } else {
         setOutputText("修正例はここ");
@@ -71,6 +81,7 @@ export default function Home() {
       setLoading(false);
     }
   }, [text]);
+
   const copyFixedData = () => {
     if (backendData) {
       let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
@@ -89,7 +100,6 @@ export default function Home() {
     }
   };
 
-
   useEffect(() => {
     if (backendData) {
       let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
@@ -98,7 +108,7 @@ export default function Home() {
       const subjectIndex = filteredFixed.indexOf("件名:");
       const bodyIndex = filteredFixed.indexOf("本文:");
 
-      if (subjectIndex !== -1 && bodyIndex !== -1) {
+      if (subjectIndex !== -1 || bodyIndex !== -1) {
         // 「本文；」の後の値を取得してセット
         filteredFixed = filteredFixed.slice(bodyIndex + 4);
       }
@@ -108,7 +118,6 @@ export default function Home() {
       setOutputText("修正例はここ");
     }
   }, [backendData]);
-
 
   return (
     <>
