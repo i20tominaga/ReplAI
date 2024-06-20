@@ -31,6 +31,10 @@ export default function Home() {
 
   const getData = useCallback(async () => {
     const requestStartTime = Date.now(); // リクエスト開始時間を記録
+    if (text.trim() === "" && (backendData?.fixed || "").trim() === "") {
+      toast.warning("入力欄にテキストを入力してください");
+      return;
+    }
     try {
       setLoading(true);
       const response = await axios.get(
@@ -41,13 +45,11 @@ export default function Home() {
 
       setBackendData(response.data);
       if (response.data) {
-        // フィルタリング処理を修正結果取得時に行う
-        let filteredFixed = response.data.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
-        const subjectIndex = filteredFixed.indexOf("件名:");
+        let filteredFixed = response.data.fixed.replace(/["“”「」]/g, "");
         const bodyIndex = filteredFixed.indexOf("本文:");
+        const subjectIndex = filteredFixed.indexOf("件名:");
 
-        if (subjectIndex !== -1 && bodyIndex !== -1) {
-          // 「本文；」の後の値を取得して修正例としてセット
+        if (bodyIndex !== -1 && subjectIndex !== -1) {
           filteredFixed = filteredFixed.slice(bodyIndex + 4);
         }
 
@@ -65,24 +67,22 @@ export default function Home() {
       console.log(response.data);
     } catch (error) {
       console.error(error);
-      toast.error(
-        <div>
-          リクエストが失敗しました
-          <Button onClick={getData} className="ml-2">
-            再試行
-          </Button>
-        </div>,
-        {
-          autoClose: false,
-          closeButton: false,
-        }
-      );
+      toast.error("エラーが発生しました。もう一度お試しください。");
     } finally {
       setLoading(false);
     }
-  }, [text]);
+  }, [text, backendData?.fixed]); // backendData?.fixed を依存関係に含める
+
 
   const copyFixedData = () => {
+    if (text.trim() === "" && (backendData?.fixed || "").trim() === "") {
+      toast.warning("入力欄にテキストを入力してください");
+      return;
+    } else if (text.trim() !== "" && (backendData?.fixed || "").trim() === "") {
+      toast.warning("修正ボタンを押してください");
+      return;
+    }
+
     if (backendData) {
       let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
 
@@ -128,7 +128,14 @@ export default function Home() {
         </p>
         <p className="text-lg font-bold text-right">執筆する</p>
       </div>
-      <a href="https://www.tokuyama.ac.jp/" className="text-lg text-gray-500">説明ページはこちら</a>
+      <a
+        href="https://www.tokuyama.ac.jp/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-4 text-lg text-gray-500"
+      >
+        説明ページはこちら
+      </a>
       <main className="flex min-h-screen flex-col items-center justify-between p-24">
         <div className="flex flex-col items-center justify-center w-full">
           <Textarea
@@ -143,28 +150,14 @@ export default function Home() {
             <p className="text-sm text-gray-500">
               文字数: {text ? text.replace(/\n/g, "").length : 0}
             </p>
-            <button
-              className="flex items-center text-white rounded-full px-3 py-1 mr-2 bg-transparent"
-              style={{ width: "2rem" }}
-            >
-              <span role="img" aria-label="personal">
-                👤
+            <div className="flex items-center">
+              <span style={{ color: "black", marginRight: "3rem" }}>
+                分かりやすさ👤: {backendData ? backendData.score.politeness : "-"}
               </span>
-              <span style={{ color: "black" }}>
-                :{backendData ? backendData.score.politeness : "-"}
+              <span style={{ color: "black", marginLeft: "3rem" }}>
+                読みやすさ😄: {backendData ? backendData.score.readability : "-"}
               </span>
-            </button>
-            <button
-              className="flex items-center text-white rounded-full px-3 py-1 mr-2 bg-transparent"
-              style={{ width: "2rem" }}
-            >
-              <span role="img" aria-label="Niko-chan">
-                😄
-              </span>
-              <span style={{ color: "black" }}>
-                :{backendData ? backendData.score.readability : "-"}
-              </span>
-            </button>
+            </div>
             <Button onClick={copyFixedData}>
               <BookCopy />
             </Button>
