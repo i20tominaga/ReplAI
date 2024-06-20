@@ -75,8 +75,8 @@ export default function Home() {
           </Button>
         </div>,
         {
-          autoClose: false,
-          closeButton: false,
+          autoClose: 5000,
+          closeButton: true,
         }
       );
     } finally {
