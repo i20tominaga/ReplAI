@@ -67,7 +67,18 @@ export default function Home() {
       console.log(response.data);
     } catch (error) {
       console.error(error);
-      toast.error("エラーが発生しました。もう一度お試しください。");
+      toast.error(
+        <div>
+          リクエストが失敗しました
+          <Button onClick={getData} className="ml-2">
+            再試行
+          </Button>
+        </div>,
+        {
+          autoClose: false,
+          closeButton: false,
+        }
+      );
     } finally {
       setLoading(false);
     }
