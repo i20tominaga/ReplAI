@@ -46,8 +46,8 @@ export default function Home() {
       setBackendData(response.data);
       if (response.data) {
         let filteredFixed = response.data.fixed.replace(/["“”「」]/g, "");
-        const bodyIndex = filteredFixed.indexOf("本文:");
-        const subjectIndex = filteredFixed.indexOf("件名:");
+        const bodyIndex = filteredFixed.indexOf("本文：");
+        const subjectIndex = filteredFixed.indexOf("件名：");
 
         if (bodyIndex !== -1 && subjectIndex !== -1) {
           filteredFixed = filteredFixed.slice(bodyIndex + 4);
@@ -154,6 +154,9 @@ export default function Home() {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+          <div className="w-full bg-gray-50 p-4 rounded-md">
+            {outputText}
+          </div>
           <div
             className="flex items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500"
             style={{ marginTop: "1rem" }}
@@ -176,11 +179,27 @@ export default function Home() {
               {loading ? <LoadingSpinner /> : <SendHorizontal />}
             </Button>
           </div>
+          <div className="w-full h-4"></div> {/* 空白の追加 */}
           <div className="w-full bg-gray-50 p-4 rounded-md shadow-inner">
-            {outputText}
-          </div>
+            {/* レスポンスが返ってきたら修正結果を表示 */}
+            {backendData && (
+              <>
+                {backendData.fixes.map((fix, index) => (
+                  <div key={index}>
+                    <p className = "font-bold">{fix.title}</p>
+                    <p>{fix.fixed}</p>
+                  </div>
+                ))}
+              </>
+            )}
+          {!backendData && (
+            <div className="w-full">
+              <p className="w-full">サジェスト:</p>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
+    </main >
     </>
   );
 }
