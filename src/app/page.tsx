@@ -4,9 +4,10 @@ import * as React from "react";
 import axios from "axios";
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { BookCopy, SendHorizontal } from "lucide-react";
+import { BookCopy, SendHorizontal, FileCheck, Frown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { ToastContainer, toast } from 'react-toastify';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import 'react-toastify/dist/ReactToastify.css';
 
 interface BackendData {
@@ -133,51 +134,70 @@ export default function Home() {
   return (
     <>
       <ToastContainer />
-      <div className="flex items-center justify-between w-full mb-4 px-4 py-2 border-b">
+      <div className={`flex items-center justify-between w-full mb-4 px-4 py-2 border-b `}>
         <p className="text-lg font-bold text-black">
           repr<span className="text-orange-500">AI</span>
         </p>
+        <a
+          href="https://cat-form-2c7.notion.site/a480ee4fb4364e2ba377cb282b1a5732/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 text-lg text-gray-500"
+        >
+          説明ページはこちら
+        </a>
         <p className="text-lg font-bold text-right">執筆する</p>
       </div>
-      <a
-        href="https://www.tokuyama.ac.jp/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="px-4 text-lg text-gray-500"
-      >
-        説明ページはこちら
-      </a>
-      <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <main className="flex min-h-screen flex-col items-center justify-between p-4 sm:p-24">
         <div className="flex flex-col items-center justify-center w-full">
-          <Textarea
-            placeholder="入力してください"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <div className="w-full bg-gray-50 p-4 rounded-md">
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="ここにテキストを入力"
+              className="w-full h-48 border-white outline:none"
+              style={{ borderColor: 'white' }}
+            />
+          <div className={`w-full bg-gray-50 p-4 rounded-md `}>
             {outputText}
           </div>
           <div
-            className="flex items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500"
-            style={{ marginTop: "1rem" }}
+            className={`flex flex-col sm:flex-row items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500 `}
           >
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mb-2 sm:mb-0">
               文字数: {text ? text.replace(/\n/g, "").length : 0}
             </p>
-            <div className="flex items-center">
-              <span style={{ color: "black", marginRight: "3rem" }}>
-                分かりやすさ👤: {backendData ? backendData.score.politeness : "-"}
-              </span>
-              <span style={{ color: "black", marginLeft: "3rem" }}>
-                読みやすさ😄: {backendData ? backendData.score.readability : "-"}
-              </span>
+            <div className="flex items-center mb-2 sm:mb-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span style={{ color: "black", marginRight: "3rem", display: "flex", alignItems: "center" }}>
+                    <Frown />
+                    : {backendData ? backendData.score.politeness : "-"}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>分かりやすさ</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span style={{ color: "black", marginLeft: "3rem", display: "flex", alignItems: "center" }}>
+                    <FileCheck />
+                    : {backendData ? backendData.score.readability : "-"}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>読みやすさ</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <Button onClick={copyFixedData}>
-              <BookCopy />
-            </Button>
-            <Button className="bg-green-500 hover:bg-green-600" onClick={() => getData()} disabled={loading}>
-              {loading ? <LoadingSpinner /> : <SendHorizontal />}
-            </Button>
+            <div className="flex items-center">
+              <Button onClick={copyFixedData} className="mr-2">
+                <BookCopy />
+              </Button>
+              <Button className="bg-green-500 hover:bg-green-600" onClick={() => getData()} disabled={loading}>
+                {loading ? <LoadingSpinner /> : <SendHorizontal />}
+              </Button>
+            </div>
           </div>
           <div className="w-full h-4"></div> {/* 空白の追加 */}
           <div className="w-full bg-gray-50 p-4 rounded-md shadow-inner">
@@ -186,20 +206,20 @@ export default function Home() {
               <>
                 {backendData.fixes.map((fix, index) => (
                   <div key={index}>
-                    <p className = "font-bold">{fix.title}</p>
+                    <p className="font-bold">{fix.title}</p>
                     <p>{fix.fixed}</p>
                   </div>
                 ))}
               </>
             )}
-          {!backendData && (
-            <div className="w-full">
-              <p className="w-full">サジェスト:</p>
-            </div>
-          )}
+            {!backendData && (
+              <div className="w-full">
+                <p className="w-full">サジェスト:</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </main >
+      </main >
     </>
   );
 }
