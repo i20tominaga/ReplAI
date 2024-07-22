@@ -44,6 +44,7 @@ export default function Home() {
       const responseTime = Date.now() - requestStartTime; // レスポンスタイムを計算
       console.log(`Total response time: ${responseTime} ms`);
 
+      // レスポンスデータをセット
       setBackendData(response.data);
       if (response.data) {
         let filteredFixed = response.data.fixed.replace(/["“”「」]/g, "");
@@ -99,7 +100,7 @@ export default function Home() {
       let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
 
       // 修正結果に「件名；」と「本文；」が含まれているかチェック
-      const subjectIndex = filteredFixed.indexOf("件名:");
+      const subjectIndex = filteredFixed.indexOf("件名：");
       const bodyIndex = filteredFixed.indexOf("本文:");
 
       if (subjectIndex !== -1 && bodyIndex !== -1) {
@@ -157,7 +158,7 @@ export default function Home() {
               className="w-full h-48 border-white outline:none"
               style={{ borderColor: 'white' }}
             />
-          <div className={`w-full bg-gray-50 p-4 rounded-md `}>
+          <div className={`w-full bg-gray-50 p-4 rounded-md whitespace-pre-wrap`}>
             {outputText}
           </div>
           <div
