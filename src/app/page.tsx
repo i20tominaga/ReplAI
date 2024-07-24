@@ -1,226 +1,55 @@
 'use client';
 
-import * as React from "react";
-import axios from "axios";
-import { useState, useCallback, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { BookCopy, SendHorizontal, FileCheck, Frown } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { ToastContainer, toast } from 'react-toastify';
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import 'react-toastify/dist/ReactToastify.css';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 
-interface BackendData {
-  fixed: string;
-  fixes: {
-    title: string;
-    fixed: string;
-  }[];
-  score: {
-    politeness: number;
-    readability: number;
-  };
-}
+export default function Page() {
+    const router = useRouter();
+    const handleClick = () => {
+        router.push('/replai');
+    };
 
-const LoadingSpinner = () => <div className="loader">修正中...</div>;
-
-export default function Home() {
-  const [backendData, setBackendData] = useState<BackendData | null>(null);
-  const [text, setText] = useState<string>(""); // 初期値を空文字列に設定
-  const [outputText, setOutputText] = useState<string>("修正例はここ");
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const getData = useCallback(async () => {
-    const requestStartTime = Date.now(); // リクエスト開始時間を記録
-    if (text.trim() === "" && (backendData?.fixed || "").trim() === "") {
-      toast.warning("入力欄にテキストを入力してください");
-      return;
-    }
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        `https://reprai-o3mmnjeefa-an.a.run.app/?text=${JSON.stringify(text)}`
-      );
-      const responseTime = Date.now() - requestStartTime; // レスポンスタイムを計算
-      console.log(`Total response time: ${responseTime} ms`);
-
-      // レスポンスデータをセット
-      setBackendData(response.data);
-      if (response.data) {
-        let filteredFixed = response.data.fixed.replace(/["“”「」]/g, "");
-        const bodyIndex = filteredFixed.indexOf("本文：");
-        const subjectIndex = filteredFixed.indexOf("件名：");
-
-        if (bodyIndex !== -1 && subjectIndex !== -1) {
-          filteredFixed = filteredFixed.slice(bodyIndex + 4);
-        }
-
-        if (filteredFixed === text) {
-          toast.info("入力された値と修正値が一致しました。修正の必要はありません。", {
-            autoClose: 5000,
-            closeButton: false,
-          });
-        } else {
-          setOutputText(filteredFixed || "修正例はここ");
-        }
-      } else {
-        setOutputText("修正例はここ");
-      }
-      console.log(response.data);
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        <div>
-          リクエストが失敗しました
-          <Button onClick={getData} className="ml-2">
-            再試行
-          </Button>
-        </div>,
-        {
-          autoClose: 5000,
-          closeButton: true,
-        }
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [text, backendData?.fixed]); // backendData?.fixed を依存関係に含める
-
-
-  const copyFixedData = () => {
-    if (text.trim() === "" && (backendData?.fixed || "").trim() === "") {
-      toast.warning("入力欄にテキストを入力してください");
-      return;
-    } else if (text.trim() !== "" && (backendData?.fixed || "").trim() === "") {
-      toast.warning("修正ボタンを押してください");
-      return;
-    }
-
-    if (backendData) {
-      let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
-
-      // 修正結果に「件名；」と「本文；」が含まれているかチェック
-      const subjectIndex = filteredFixed.indexOf("件名：");
-      const bodyIndex = filteredFixed.indexOf("本文:");
-
-      if (subjectIndex !== -1 && bodyIndex !== -1) {
-        // 「本文；」の後の値を取得してクリップボードにコピー
-        filteredFixed = filteredFixed.slice(bodyIndex + 4);
-      }
-
-      navigator.clipboard.writeText(filteredFixed);
-      toast.success("コピーが成功しました！");
-    }
-  };
-
-  useEffect(() => {
-    if (backendData) {
-      let filteredFixed = backendData.fixed.replace(/["“”「」]/g, ''); // ダブルクォーテーションや角括弧を除外する正規表現
-
-      // 修正結果に「件名；」と「本文；」が含まれているかチェック
-      const subjectIndex = filteredFixed.indexOf("件名:");
-      const bodyIndex = filteredFixed.indexOf("本文:");
-
-      if (subjectIndex !== -1 || bodyIndex !== -1) {
-        // 「本文；」の後の値を取得してセット
-        filteredFixed = filteredFixed.slice(bodyIndex + 4);
-      }
-
-      setOutputText(filteredFixed || "修正例はここ");
-    } else {
-      setOutputText("修正例はここ");
-    }
-  }, [backendData]);
-
-  return (
-    <>
-      <ToastContainer />
-      <div className={`flex items-center justify-between w-full mb-4 px-4 py-2 border-b `}>
-        <p className="text-lg font-bold text-black">
-          repr<span className="text-orange-500">AI</span>
-        </p>
-        <a
-          href="https://cat-form-2c7.notion.site/a480ee4fb4364e2ba377cb282b1a5732/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 text-lg text-gray-500"
-        >
-          説明ページはこちら
-        </a>
-        <p className="text-lg font-bold text-right">執筆する</p>
-      </div>
-      <main className="flex min-h-screen flex-col items-center justify-between p-4 sm:p-24">
-        <div className="flex flex-col items-center justify-center w-full">
-            <Textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="ここにテキストを入力"
-              className="w-full h-48 border-white outline:none"
-              style={{ borderColor: 'white' }}
-            />
-          <div className={`w-full bg-gray-50 p-4 rounded-md whitespace-pre-wrap`}>
-            {outputText}
-          </div>
-          <div
-            className={`flex flex-col sm:flex-row items-center justify-between w-full bg-gray-100 rounded-md p-4 mb-4 text-sm text-gray-500 `}
-          >
-            <p className="text-sm text-gray-500 mb-2 sm:mb-0">
-              文字数: {text ? text.replace(/\n/g, "").length : 0}
-            </p>
-            <div className="flex items-center mb-2 sm:mb-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span style={{ color: "black", marginRight: "3rem", display: "flex", alignItems: "center" }}>
-                    <Frown />
-                    : {backendData ? backendData.score.politeness : "-"}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>分かりやすさ</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span style={{ color: "black", marginLeft: "3rem", display: "flex", alignItems: "center" }}>
-                    <FileCheck />
-                    : {backendData ? backendData.score.readability : "-"}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>読みやすさ</p>
-                </TooltipContent>
-              </Tooltip>
+    return (
+        <div className="min-h-screen flex justify-center items-center bg-gray-100">
+            <div className="w-full max-w-[390px] h-auto bg-white flex-col justify-start items-start inline-flex">
+                <div className="w-full bg-white shadow flex justify-between items-center px-4 py-2 sm:px-6 sm:py-4">
+                    <div className="flex items-center">
+                        <div className="text-black text-lg sm:text-2xl font-bold font-['Inter']">repr</div>
+                        <div className="text-red-500 text-lg sm:text-2xl font-bold font-['Inter']">AI</div>
+                    </div>
+                    <div className="w-auto p-2 sm:p-4 flex justify-center items-center gap-2.5 mr-2 sm:mr-4">
+                        <div className="text-zinc-600 text-xs sm:text-sm font-bold font-['Inter']">執筆する</div>
+                    </div>
+                </div>
+                <div className="w-full h-[auto] relative">
+                    <div className="w-full h-full absolute top-0 left-0 bg-black opacity-50" />
+                    <img className="w-full h-full object-cover" src="glenn-carstens-peters-npxXWgQ33ZQ-unsplash 1.png" alt="背景画像" />
+                    <div className="absolute left-4 sm:left-8 top-[20%] sm:top-[30%]">
+                        <span className="text-white text-lg sm:text-[32px] font-bold font-['Inter']">誰にでも、</span>
+                        <span className="text-white text-lg sm:text-[32px] font-bold font-['Inter'] underline">簡単に</span>
+                        <span className="text-white text-lg sm:text-[32px] font-bold font-['Inter']">伝わるメールを</span>
+                    </div>
+                </div>
+                <div className="w-full h-16 relative bg-red-700 flex items-center justify-start px-4 sm:px-8">
+                    <div className="text-white text-lg sm:text-2xl font-bold font-['Inter']">サービスの特徴</div>
+                </div>
+                <div className="w-full px-4 sm:px-8 py-6 flex-col justify-start items-center gap-4 flex">
+                    <div className="text-black text-xl sm:text-2xl font-bold font-['Inter']">文章の特徴が点数で分かる。</div>
+                    <div className="text-black text-xs sm:text-sm font-normal font-['Inter']">reprAIなら、文章の曖昧さやフォーマルさが5段階評価でわかります。</div>
+                    <img className="w-full h-auto max-h-60 object-cover" src="1404 1.png" alt="特徴1" />
+                    <div className="text-black text-xl sm:text-2xl font-bold font-['Inter']">伝わりにくいを防止。</div>
+                    <div className="text-black text-xs sm:text-sm font-normal font-['Inter']">具体的にどこが悪いのか、一人で書いていたら気付けない伝わりにくさを、AIが意味を理解して提案します。</div>
+                    <img className="w-full h-auto max-h-60 object-cover" src="1368 1.png" alt="特徴2" />
+                    <div className="text-black text-xl sm:text-2xl font-bold font-['Inter']">ワンクリックですぐ修正。</div>
+                    <div className="text-black text-xs sm:text-sm font-normal font-['Inter']">ついつい時間が過ぎてしまいがちなメール執筆ですが、reprAIならすぐに改善できます。</div>
+                    <img className="w-full h-auto max-h-60 object-cover" src="1394 1.png" alt="特徴3" />
+                    <div className="px-4 sm:px-8 py-2 sm:py-3 bg-red-700 rounded-full flex justify-center items-center">
+                        <div className="text-white text-lg sm:text-2xl font-bold font-['Inter']">
+                            <button onClick={handleClick}>さっそく使ってみる</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="flex items-center">
-              <Button onClick={copyFixedData} className="mr-2">
-                <BookCopy />
-              </Button>
-              <Button className="bg-green-500 hover:bg-green-600" onClick={() => getData()} disabled={loading}>
-                {loading ? <LoadingSpinner /> : <SendHorizontal />}
-              </Button>
-            </div>
-          </div>
-          <div className="w-full h-4"></div> {/* 空白の追加 */}
-          <div className="w-full bg-gray-50 p-4 rounded-md shadow-inner">
-            {/* レスポンスが返ってきたら修正結果を表示 */}
-            {backendData && (
-              <>
-                {backendData.fixes.map((fix, index) => (
-                  <div key={index}>
-                    <p className="font-bold">{fix.title}</p>
-                    <p>{fix.fixed}</p>
-                  </div>
-                ))}
-              </>
-            )}
-            {!backendData && (
-              <div className="w-full">
-                <p className="w-full">サジェスト:</p>
-              </div>
-            )}
-          </div>
         </div>
-      </main >
-    </>
-  );
+    );
 }
