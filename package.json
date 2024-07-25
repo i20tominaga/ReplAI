@@ -38,6 +38,7 @@
     "@udecode/plate-combobox": "^33.0.0",
     "@udecode/plate-comments": "^33.0.2",
     "@udecode/plate-common": "^33.0.4",
+    "@udecode/plate-core": "^36.2.1",
     "@udecode/plate-cursor": "^33.0.2",
     "@udecode/plate-dnd": "^33.0.0",
     "@udecode/plate-emoji": "^33.0.0",
