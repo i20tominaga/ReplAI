@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ToastContainer, toast } from 'react-toastify';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import 'react-toastify/dist/ReactToastify.css';
+import { useRouter } from 'next/navigation';
 
 interface BackendData {
     fixed: string;
@@ -24,11 +25,16 @@ interface BackendData {
 
 const LoadingSpinner = () => <div className="loader">修正中...</div>;
 
+
 export default function Home() {
     const [backendData, setBackendData] = useState<BackendData | null>(null);
     const [text, setText] = useState<string>(""); // 初期値を空文字列に設定
     const [outputText, setOutputText] = useState<string>("修正例はここ");
     const [loading, setLoading] = useState<boolean>(false);
+    const router = useRouter();
+    const handleClick = () => {
+        router.push('/');
+    }
 
     const getData = useCallback(async () => {
         const requestStartTime = Date.now(); // リクエスト開始時間を記録
@@ -136,17 +142,13 @@ export default function Home() {
         <>
             <ToastContainer />
             <div className={`flex items-center justify-between w-full mb-4 px-4 py-2 border-b `}>
-                <p className="text-lg font-bold text-black">
-                    repr<span className="text-orange-500">AI</span>
-                </p>
-                <a
-                    href="https://cat-form-2c7.notion.site/a480ee4fb4364e2ba377cb282b1a5732/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 text-lg text-gray-500"
+                <Button
+                    onClick={handleClick}
+                    className="text-lg font-bold text-black"
+                    variant="link"
                 >
-                    説明ページはこちら
-                </a>
+                    repr<span className="text-orange-500">AI</span>
+                </Button>
                 <p className="text-lg font-bold text-right">執筆する</p>
             </div>
             <main className="flex min-h-screen flex-col items-center justify-between p-4 sm:p-24">

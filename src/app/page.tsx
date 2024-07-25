@@ -13,12 +13,22 @@ export default function Page() {
         <div className="min-h-screen flex justify-center items-center bg-gray-100">
             <div className="w-full max-w-[390px] h-auto bg-white flex-col justify-start items-start inline-flex">
                 <div className="w-full bg-white shadow flex justify-between items-center px-4 py-2 sm:px-6 sm:py-4">
-                    <div className="flex items-center">
+                    <a
+                        href="https://cat-form-2c7.notion.site/a480ee4fb4364e2ba377cb282b1a5732"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center"
+                    >
                         <div className="text-black text-lg sm:text-2xl font-bold font-['Inter']">repr</div>
-                        <div className="text-red-500 text-lg sm:text-2xl font-bold font-['Inter']">AI</div>
-                    </div>
+                        <div className="text-orange-500 text-lg sm:text-2xl font-bold font-['Inter']">AI</div>
+                    </a>
                     <div className="w-auto p-2 sm:p-4 flex justify-center items-center gap-2.5 mr-2 sm:mr-4">
-                        <div className="text-zinc-600 text-xs sm:text-sm font-bold font-['Inter']">執筆する</div>
+                        <button
+                            className="text-zinc-600 text-xs sm:text-sm font-bold font-['Inter'] bg-white hover:bg-gray-300 px-4 py-2 rounded"
+                            onClick={handleClick}
+                        >
+                            執筆する
+                        </button>
                     </div>
                 </div>
                 <div className="w-full h-[auto] relative">
