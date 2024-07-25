@@ -149,6 +149,7 @@ export default function Home() {
                 >
                     repr<span className="text-orange-500">AI</span>
                 </Button>
+
                 <p className="text-lg font-bold text-right">執筆する</p>
             </div>
             <main className="flex min-h-screen flex-col items-center justify-between p-4 sm:p-24">
